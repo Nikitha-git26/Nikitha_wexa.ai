@@ -2,6 +2,16 @@
 
 A graph-native explorer for supply chain dependencies, built on **Next.js 14 (App Router) + TypeScript + Tailwind**, backed by **CognoDB** (Neo4j, Bolt 5.0–5.4, openCypher).
 
+**Live demo:** _add hosted URL here after deploying (see [Deployment](#deployment))_
+**Screen recording:** _add a short Loom/OBS walkthrough link here before submission_
+
+## Overview & architecture
+
+- **`lib/db.ts`** — singleton Neo4j driver (small connection pool sized for a 0.5 vCPU/256MB instance), a `DatabaseConnectionError` wrapper, and a `runQuery()` helper that always opens/closes a session and never leaks credentials or raw driver errors to callers.
+- **`app/api/graph/route.ts`** — one API route, four query types (`overview`, `suppliers`, `impact`, `bottlenecks`) selected via `?type=`, each backed by a parameterized Cypher statement. Returns `503` if CognoDB is unreachable and `502` on query failure, with a user-safe error message.
+- **`app/page.tsx`** — client-side tabbed UI (Overview / Impact Analysis / Bottlenecks) with explicit loading (skeletons), empty, and error (with retry) states for every panel, keyboard-operable tabs (`role="tablist"`/`role="tab"`), and an accessible SVG dependency diagram (`role="img"` + per-node `<title>`, plus a text legend as a non-visual fallback).
+- **`scripts/seed.ts`** — standalone script (`tsx`) that loads the demo dataset using the same parameterized-write discipline as the API.
+
 ## Why a graph database?
 
 Supply chains are dependency graphs, not tables: a supplier feeds a component, a component feeds several products, a product is built at multiple factories, and each factory ships to multiple warehouses. The questions that matter — *"what breaks if this supplier fails?"* and *"which single-sourced parts are our biggest exposure?"* — are inherently **multi-hop traversals with variable fan-out**.
@@ -81,13 +91,6 @@ All queries live in [`app/api/graph/route.ts`](app/api/graph/route.ts) and use `
    npm run dev
    ```
    Open [http://localhost:3000](http://localhost:3000).
-
-## Architecture
-
-- **`lib/db.ts`** — singleton Neo4j driver (small connection pool sized for a 0.5 vCPU/256MB instance), a `DatabaseConnectionError` wrapper, and a `runQuery()` helper that always opens/closes a session and never leaks credentials or raw driver errors to callers.
-- **`app/api/graph/route.ts`** — one API route, four query types (`overview`, `suppliers`, `impact`, `bottlenecks`) selected via `?type=`, each backed by a parameterized Cypher statement. Returns `503` if CognoDB is unreachable and `502` on query failure, with a user-safe error message.
-- **`app/page.tsx`** — client-side tabbed UI (Overview / Impact Analysis / Bottlenecks) with explicit loading (skeletons), empty, and error (with retry) states for every panel, keyboard-operable tabs (`role="tablist"`/`role="tab"`), and an accessible SVG dependency diagram (`role="img"` + per-node `<title>`, plus a text legend as a non-visual fallback).
-- **`scripts/seed.ts`** — standalone script (`tsx`) that loads the demo dataset using the same parameterized-write discipline as the API.
 
 ## Deployment
 
