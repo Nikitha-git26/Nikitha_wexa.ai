@@ -2,7 +2,7 @@
 
 A graph-native explorer for supply chain dependencies, built on **Next.js 14 (App Router) + TypeScript + Tailwind**, backed by **CognoDB** (Neo4j, Bolt 5.0–5.4, openCypher).
 
-**Live demo:** _add hosted URL here after deploying (see [Deployment](#deployment))_
+**Live demo:** [nikitha-wexa-ai-ql83.vercel.app](https://nikitha-wexa-ai-ql83.vercel.app)
 **Screen recording:** _add a short Loom/OBS walkthrough link here before submission_
 
 ## Overview & architecture
