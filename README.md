@@ -10,6 +10,8 @@ In a relational schema, answering either question means joining five tables (`su
 
 In Cypher, the same question is a single pattern match: relationships are first-class, traversal depth is just more arrows in the pattern, and `WITH ... collect(DISTINCT ...)` controls exactly where aggregation happens — no join-fanout bugs, no query restructuring as hop count changes. This is the textbook case for a graph database, and it's why the API in this project answers both a **4-hop traversal** and a **single-source-of-failure aggregation** ([details below](#query-explanations)) each in one Cypher statement.
 
+The fixed 5-hop shape (`Supplier → Component → Product → Factory → Warehouse`) is already awkward in standard SQL; a variable-depth version of the same question (*"what does this supplier affect, arbitrarily many tiers out?"*) is worse — it needs a recursive CTE (`WITH RECURSIVE`) that walks the edge table generation by generation, tracks a visited-set to avoid cycles, and still has to be rewritten if the join shape changes. In Cypher that's a variable-length pattern, `-[:SUPPLIES*1..5]->`, with cycle-safety and aggregation built into the language rather than hand-rolled.
+
 ## Data model
 
 ```
@@ -50,27 +52,31 @@ All queries live in [`app/api/graph/route.ts`](app/api/graph/route.ts) and use `
 
 ## Setup
 
-1. **Install dependencies**
+1. **Provision a CognoDB Cloud instance**
+   - Go to [console.cognodb.com/signup](https://console.cognodb.com/signup) and create a free account (no credit card required).
+   - From the console, create a free **c0** instance and pick a region. It provisions in under a minute; each workspace gets one free instance.
+   - Copy the connection URI (`bolt+s://<instance-id>.databases.cognodb.cloud`) and the generated password for user `cognodb` — **the password is shown exactly once**, so save it immediately.
+2. **Install dependencies**
    ```bash
    npm install
    ```
-2. **Configure environment** — copy `.env.example` to `.env.local` and fill in your CognoDB credentials:
+3. **Configure environment** — copy `.env.example` to `.env.local` and fill in the credentials from step 1:
    ```bash
    cp .env.example .env.local
    ```
    ```env
-   NEO4J_URI=neo4j+s://<your-cognodb-host>:7687
+   NEO4J_URI=bolt+s://<instance-id>.databases.cognodb.cloud:7687
    NEO4J_USER=cognodb
    NEO4J_PASSWORD=<your-cognodb-password>
    NEO4J_DATABASE=neo4j
    ```
-   Secrets are read exclusively from environment variables ([`lib/db.ts`](lib/db.ts)) — never hardcoded.
-3. **Seed the database**
+   Secrets are read exclusively from environment variables ([`lib/db.ts`](lib/db.ts)) — never hardcoded. `.env.local` is gitignored and never committed.
+4. **Seed the database**
    ```bash
    npm run seed
    ```
    This applies uniqueness constraints on `id` per label, clears any previous demo data, and loads the dataset via batched, parameterized `UNWIND` writes.
-4. **Run the app**
+5. **Run the app**
    ```bash
    npm run dev
    ```
@@ -82,6 +88,27 @@ All queries live in [`app/api/graph/route.ts`](app/api/graph/route.ts) and use `
 - **`app/api/graph/route.ts`** — one API route, four query types (`overview`, `suppliers`, `impact`, `bottlenecks`) selected via `?type=`, each backed by a parameterized Cypher statement. Returns `503` if CognoDB is unreachable and `502` on query failure, with a user-safe error message.
 - **`app/page.tsx`** — client-side tabbed UI (Overview / Impact Analysis / Bottlenecks) with explicit loading (skeletons), empty, and error (with retry) states for every panel, keyboard-operable tabs (`role="tablist"`/`role="tab"`), and an accessible SVG dependency diagram (`role="img"` + per-node `<title>`, plus a text legend as a non-visual fallback).
 - **`scripts/seed.ts`** — standalone script (`tsx`) that loads the demo dataset using the same parameterized-write discipline as the API.
+
+## Deployment
+
+The app is a standard Next.js project — frontend and API routes ship as one deployable unit, so no separate backend hosting or extra config file (`vercel.json`, `Procfile`) is needed; `npm run build` / `npm run start` in [`package.json`](package.json) are all Vercel's zero-config Next.js detection requires.
+
+1. Push this repo to GitHub (already done if you're reading this from there).
+2. Go to [vercel.com](https://vercel.com) → sign in with GitHub → **Add New Project** → import this repository.
+3. In the project's **Settings → Environment Variables**, add the same four variables from `.env.local`: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`.
+4. Deploy. Vercel builds with `npm run build` and serves with `npm run start` automatically, producing a URL like `https://<project-name>.vercel.app`.
+
+Equivalent CLI path, if you prefer the terminal over the dashboard:
+```bash
+npm i -g vercel
+vercel login
+vercel link
+vercel env add NEO4J_URI
+vercel env add NEO4J_USER
+vercel env add NEO4J_PASSWORD
+vercel env add NEO4J_DATABASE
+vercel --prod
+```
 
 ## Screenshots
 
