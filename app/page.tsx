@@ -378,7 +378,7 @@ export default function Page() {
       <header>
         <h1 className="text-2xl font-bold text-slate-900">Supply Chain Risk & Bottleneck Mapping</h1>
         <p className="mt-1 text-slate-600">
-          Explore supplier, component, and factory dependencies stored as a graph in CognoDB.
+          Explore supplier, component, and factory dependencies stored as a graph in Neo4j.
         </p>
       </header>
 
